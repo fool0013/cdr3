@@ -95,9 +95,9 @@ def show_config(S):
     print(f"  Train batch    : {S['train_batch']}")
     print(f"  Threads        : {S['threads']}")
     print(f"  Use GPU        : {S['use_gpu']}")
-    print(Fore.YELLOW + "  Training upgrades:" + Style.RESET_ALL)
-    print(f"    Hard negatives : {S['hard_neg']}  (factor={S['hn_factor']})")
-    print(f"    Pos oversample : x{S['pos_mult']}")
+    print(Fore.YELLOW + "Training upgrades:" + Style.RESET_ALL)
+    print(f"  Hard negatives : {S['hard_neg']}  (factor={S['hn_factor']})")
+    print(f"  Pos oversample : x{S['pos_mult']}")
 
 def run_py(script, *args, check=True, capture=False):
     cmd = [sys.executable, script, *map(str, args)]
