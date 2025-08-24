@@ -1,0 +1,16 @@
+{
+  "antigen": "",
+  "seed_cdr3": "CARDRSTGYVYFDYW",
+  "esm": "t6_8M",
+  "checkpoint": "score_model.pt",
+  "steps": 200,
+  "beam": 50,
+  "k_mut": 1,
+  "keep_top": 50,
+  "embed_batch": 64,
+  "clusters": 12,
+  "out_folder": "runs",
+  "last_raw": "",
+  "last_filtered": "",
+  "last_panel": ""
+}
