@@ -1,5 +1,5 @@
 # i fucking edited this file like 50 fucking times because it kept breaking when i called for steps
-import os, sys, json, time, subprocess
+import os, sys, json, time, subprocess, csv
 from pathlib import Path
 
 # ---------- colored output (optional) ----------
@@ -81,7 +81,42 @@ def run_py(script, *args, check=True):
     print(Fore.CYAN + "$ " + " ".join(cmd) + Style.RESET_ALL)
     return subprocess.run(cmd, check=check)
 
-# ---------- actions (fuck you step_* names) ----------
+# ---------- FASTA helper ----------
+def write_fasta_from_csv(panel_csv: str, fasta_path: str):
+    """Fallback FASTA writer if export_fasta.py isn't present."""
+    n = 0
+    with open(panel_csv, newline="", encoding="utf-8") as f_in, \
+         open(fasta_path, "w", encoding="utf-8") as f_out:
+        reader = csv.reader(f_in)
+        header = next(reader, None)
+        # try to locate cdr3 column
+        cdr3_idx = None
+        if header:
+            # first try named column
+            for i, h in enumerate(header):
+                if str(h).strip().lower() in ("cdr3", "sequence", "seq"):
+                    cdr3_idx = i
+                    break
+            # else assume second column is CDR3 (score,cdr3)
+            if cdr3_idx is None and len(header) >= 2:
+                cdr3_idx = 1
+        # stream rows
+        if cdr3_idx is None:
+            # no header -> assume second column
+            f_in.seek(0)
+            reader = csv.reader(f_in)
+            cdr3_idx = 1
+        for i, row in enumerate(reader, start=1):
+            if not row or len(row) <= cdr3_idx:
+                continue
+            cdr3 = row[cdr3_idx].strip()
+            if not cdr3:
+                continue
+            f_out.write(f">cand_{i}\n{cdr3}\n")
+            n += 1
+    return n
+
+# ---------- actions ----------
 def action_edit(S):
     clear(); header("Edit config"); show_config(S)
     print("\nEdit which field?")
@@ -167,20 +202,32 @@ def action_filter(S):
     press_enter()
 
 def action_cluster(S):
-    clear(); header("Cluster into panel")
+    clear(); header("Cluster into panel + export FASTA")
     if not S.get("last_filtered"):
         print(Fore.RED + "No filtered CSV. Run filtering first." + Style.RESET_ALL); press_enter(); return
     inp = S["last_filtered"]
     out_dir = ensure_out_folder(S)
-    out_csv = str(Path(out_dir, f"{Path(inp).stem}_panel.csv"))
+    out_csv  = str(Path(out_dir, f"{Path(inp).stem}_panel.csv"))
+    out_fa   = str(Path(out_dir, f"{Path(inp).stem}_panel.fasta"))
     try:
+        # cluster into panel
         run_py("cluster_candidates.py",
                "--inp", inp, "--out", out_csv,
                "--k", S["clusters"], "--esm", S["esm"])
         print(Fore.GREEN + f"Wrote {out_csv}" + Style.RESET_ALL)
-        S["last_panel"] = out_csv; save_state(S)
+        S["last_panel"] = out_csv
+        save_state(S)
+
+        # export FASTA (prefer script if available, else fallback writer)
+        if Path("export_fasta.py").exists():
+            run_py("export_fasta.py", "--inp", out_csv, "--out", out_fa)
+            print(Fore.GREEN + f"Wrote {out_fa}" + Style.RESET_ALL)
+        else:
+            n = write_fasta_from_csv(out_csv, out_fa)
+            print(Fore.GREEN + f"Wrote {out_fa} ({n} sequences)" + Style.RESET_ALL)
+
     except subprocess.CalledProcessError:
-        print(Fore.RED + "Clustering failed." + Style.RESET_ALL)
+        print(Fore.RED + "Clustering or FASTA export failed." + Style.RESET_ALL)
     press_enter()
 
 def action_quick(S):
@@ -257,3 +304,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+#patch .fasta files not being added to runs folder 8/23/25
