@@ -5,7 +5,7 @@ from sklearn.metrics import roc_auc_score
 
 EMB = "data/pair_embeddings.npy"
 LAB = "data/labels.npy"
-CKPT = "score_model.pt"   # or "score_model_safe.pt" if you convert later
+CKPT = "score_model.pt"   # or "score_model_safe.pt" if you convert later (DONT FORGET ANDREW)
 
 # ---- model must match training ----
 class MLP(nn.Module):
@@ -50,3 +50,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
