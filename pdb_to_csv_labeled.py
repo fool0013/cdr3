@@ -124,7 +124,8 @@ def main():
 
     df = pd.DataFrame(rows)
     df.to_csv(args.out_csv, index=False)
-    print(f"\n✅ wrote {len(df)} labeled pairs to {args.out_csv}")
+    print(f"\n wrote {len(df)} labeled pairs to {args.out_csv}")
 
 if __name__ == "__main__":
     main()
+
