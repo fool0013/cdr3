@@ -106,7 +106,7 @@ def run_py(script, *args, check=True, capture=False):
         return subprocess.run(cmd, check=check, text=True, capture_output=True)
     return subprocess.run(cmd, check=check)
 
-# -------- FASTA helper --------
+# -------- FASTA  --------
 def write_fasta_from_csv(panel_csv: str, fasta_path: str):
     """Fallback FASTA writer if export_fasta.py isn't present."""
     n = 0
@@ -284,7 +284,7 @@ def action_outputs(S):
     print("Last panel CSV      : ", S.get("last_panel") or "(none)")
     press_enter()
 
-# ---------- Training data augmentation helpers ----------
+# ---------- training data aug. helpers (a little broken) ----------
 def _augment_with_hard_negatives(emb_path: str, lab_path: str, factor: int):
     import numpy as np
     X = np.load(emb_path)     # shape (N, 2, D)
@@ -305,12 +305,12 @@ def _augment_with_hard_negatives(emb_path: str, lab_path: str, factor: int):
 
     for _ in range(factor):
         perm = np.arange(N)
-        # random permutation with no fixed points (or at least minimize)
+        # random permutation w/no fixed points (or at least minimize)
         while True:
             np.random.shuffle(perm)
             if not np.all(perm == np.arange(N)):
                 break
-        # mismatched pairs: antigen i with cdr3 perm[i]
+        # mismatched pairs do antigen i with cdr3 perm[i]
         C_perm = C[perm]
         X_hn = np.stack([A, C_perm], axis=1)     # (N,2,D)
         y_hn = np.zeros(N, dtype=y.dtype)
@@ -479,3 +479,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
