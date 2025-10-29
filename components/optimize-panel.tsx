@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -26,6 +26,37 @@ export function OptimizePanel() {
   })
 
   const [pipelineData, setPipelineData] = useState<any>(null)
+
+  useEffect(() => {
+    if (typeof sessionStorage !== "undefined") {
+      const savedState = sessionStorage.getItem("abyss_pipeline_state")
+      if (savedState) {
+        try {
+          const state = JSON.parse(savedState)
+          setOptimizeStatus(state.optimizeStatus || "idle")
+          setFilterStatus(state.filterStatus || "idle")
+          setClusterStatus(state.clusterStatus || "idle")
+          setQuickStatus(state.quickStatus || "idle")
+          setStats(state.stats || { generated: 0, filtered: 0, clustered: 0 })
+        } catch (error) {
+          console.log("[v0] Could not restore pipeline state")
+        }
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof sessionStorage !== "undefined") {
+      const state = {
+        optimizeStatus,
+        filterStatus,
+        clusterStatus,
+        quickStatus,
+        stats,
+      }
+      sessionStorage.setItem("abyss_pipeline_state", JSON.stringify(state))
+    }
+  }, [optimizeStatus, filterStatus, clusterStatus, quickStatus, stats])
 
   const runOptimize = async () => {
     setOptimizeStatus("running")
@@ -54,6 +85,7 @@ export function OptimizePanel() {
 
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.setItem("abyss_optimize_data", JSON.stringify(data.data))
+        sessionStorage.setItem("abyss_last_raw", JSON.stringify(data.data))
       }
 
       toast({
@@ -115,6 +147,7 @@ export function OptimizePanel() {
 
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.setItem("abyss_filter_data", JSON.stringify(data.data))
+        sessionStorage.setItem("abyss_last_filtered", JSON.stringify(data.data))
       }
 
       toast({

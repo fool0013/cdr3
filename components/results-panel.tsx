@@ -30,10 +30,36 @@ export function ResultsPanel() {
 
   const loadResults = async () => {
     try {
-      const res = await fetch("/api/results")
-      if (!res.ok) throw new Error("Failed to load results")
-      const data = await res.json()
-      setResults(data)
+      if (typeof sessionStorage !== "undefined") {
+        const rawDataStr = sessionStorage.getItem("abyss_last_raw")
+        const filteredDataStr = sessionStorage.getItem("abyss_last_filtered")
+        const panelDataStr = sessionStorage.getItem("abyss_last_panel")
+
+        const loadedResults: any = {
+          raw: rawDataStr ? "Generated" : null,
+          filtered: filteredDataStr ? "Filtered" : null,
+          panel: panelDataStr ? "Panel Created" : null,
+          candidates: [],
+        }
+
+        // Load panel candidates for preview
+        if (panelDataStr) {
+          try {
+            const panelData = JSON.parse(panelDataStr)
+            if (panelData.candidates && Array.isArray(panelData.candidates)) {
+              loadedResults.candidates = panelData.candidates.slice(0, 20).map((c: any) => ({
+                cdr3: c.cdr3,
+                score: c.score,
+                cluster: c.cluster,
+              }))
+            }
+          } catch (error) {
+            console.log("[v0] Could not load candidates preview:", error)
+          }
+        }
+
+        setResults(loadedResults)
+      }
     } catch (error) {
       toast({
         title: "Error",
