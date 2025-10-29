@@ -25,7 +25,7 @@ export function OptimizePanel() {
     clustered: 0,
   })
 
-  const [candidates, setCandidates] = useState<any[]>([])
+  const [pipelineData, setPipelineData] = useState<any>(null)
 
   const runOptimize = async () => {
     setOptimizeStatus("running")
@@ -50,11 +50,10 @@ export function OptimizePanel() {
       setStats((prev) => ({ ...prev, generated: data.count || 0 }))
       setMessage(`Generated ${data.count || 0} candidates`)
 
-      const candidatesArray = Array.isArray(data.data) ? data.data : data.data?.candidates || []
-      setCandidates(candidatesArray)
+      setPipelineData(data.data)
 
       if (typeof sessionStorage !== "undefined") {
-        sessionStorage.setItem("abyss_optimize_data", JSON.stringify(candidatesArray))
+        sessionStorage.setItem("abyss_optimize_data", JSON.stringify(data.data))
       }
 
       toast({
@@ -62,7 +61,7 @@ export function OptimizePanel() {
         description: "CDR3 candidates generated successfully",
       })
 
-      return candidatesArray
+      return data.data
     } catch (error) {
       setOptimizeStatus("error")
       setMessage(error instanceof Error ? error.message : "Optimization failed")
@@ -75,30 +74,24 @@ export function OptimizePanel() {
     }
   }
 
-  const runFilter = async (inputData?: any[]) => {
+  const runFilter = async (inputData?: any) => {
     setFilterStatus("running")
     setProgress(0)
     setMessage("Filtering candidates...")
 
     try {
-      let dataToFilter = inputData || candidates
+      let dataToFilter = inputData || pipelineData
 
-      if (!dataToFilter || dataToFilter.length === 0) {
-        if (typeof sessionStorage !== "undefined") {
-          const stored = sessionStorage.getItem("abyss_optimize_data")
-          if (stored) {
-            try {
-              dataToFilter = JSON.parse(stored)
-              setCandidates(dataToFilter)
-            } catch (e) {
-              console.error("[v0] Failed to parse stored data:", e)
-            }
-          }
+      if (!dataToFilter && typeof sessionStorage !== "undefined") {
+        const stored = sessionStorage.getItem("abyss_optimize_data")
+        if (stored) {
+          dataToFilter = JSON.parse(stored)
+          setPipelineData(dataToFilter)
         }
       }
 
-      if (!dataToFilter || dataToFilter.length === 0) {
-        throw new Error("No candidates found. Run optimization first.")
+      if (!dataToFilter) {
+        throw new Error("No data to filter. Run optimization first.")
       }
 
       const configStr = sessionStorage.getItem("abyss_config")
@@ -107,10 +100,7 @@ export function OptimizePanel() {
       const res = await fetch("/api/filter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: Array.isArray(dataToFilter) ? dataToFilter : [],
-          config,
-        }),
+        body: JSON.stringify({ data: dataToFilter, config }),
       })
       const data = await res.json()
 
@@ -121,11 +111,10 @@ export function OptimizePanel() {
       setStats((prev) => ({ ...prev, filtered: data.count || 0 }))
       setMessage(`Filtered to ${data.count || 0} top candidates`)
 
-      const filteredCandidates = Array.isArray(data.data) ? data.data : data.data?.candidates || []
-      setCandidates(filteredCandidates)
+      setPipelineData(data.data)
 
       if (typeof sessionStorage !== "undefined") {
-        sessionStorage.setItem("abyss_filter_data", JSON.stringify(filteredCandidates))
+        sessionStorage.setItem("abyss_filter_data", JSON.stringify(data.data))
       }
 
       toast({
@@ -133,7 +122,7 @@ export function OptimizePanel() {
         description: "Candidates filtered successfully",
       })
 
-      return filteredCandidates
+      return data.data
     } catch (error) {
       setFilterStatus("error")
       setMessage(error instanceof Error ? error.message : "Filtering failed")
@@ -146,25 +135,23 @@ export function OptimizePanel() {
     }
   }
 
-  const runCluster = async (inputData?: any[]) => {
+  const runCluster = async (inputData?: any) => {
     setClusterStatus("running")
     setProgress(0)
     setMessage("Clustering into panel...")
 
     try {
-      let dataToCluster = inputData || candidates
+      let dataToCluster = inputData || pipelineData
 
-      if (!dataToCluster || dataToCluster.length === 0) {
-        if (typeof sessionStorage !== "undefined") {
-          const stored = sessionStorage.getItem("abyss_filter_data")
-          if (stored) {
-            dataToCluster = JSON.parse(stored)
-            setCandidates(dataToCluster)
-          }
+      if (!dataToCluster && typeof sessionStorage !== "undefined") {
+        const stored = sessionStorage.getItem("abyss_filter_data")
+        if (stored) {
+          dataToCluster = JSON.parse(stored)
+          setPipelineData(dataToCluster)
         }
       }
 
-      if (!dataToCluster || dataToCluster.length === 0) {
+      if (!dataToCluster) {
         throw new Error("No data to cluster. Run filtering first.")
       }
 
@@ -174,10 +161,7 @@ export function OptimizePanel() {
       const res = await fetch("/api/cluster", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: Array.isArray(dataToCluster) ? dataToCluster : [],
-          config,
-        }),
+        body: JSON.stringify({ data: dataToCluster, config }),
       })
       const data = await res.json()
 
@@ -188,10 +172,8 @@ export function OptimizePanel() {
       setStats((prev) => ({ ...prev, clustered: data.count || 0 }))
       setMessage(`Created panel with ${data.count || 0} clusters`)
 
-      const clusteredData = Array.isArray(data.data) ? data.data : data.data?.clusters || []
-
       if (typeof sessionStorage !== "undefined") {
-        sessionStorage.setItem("abyss_last_panel", JSON.stringify(clusteredData))
+        sessionStorage.setItem("abyss_last_panel", JSON.stringify(data.data))
       }
 
       toast({
@@ -199,7 +181,7 @@ export function OptimizePanel() {
         description: "Panel created successfully",
       })
 
-      return clusteredData
+      return data.data
     } catch (error) {
       setClusterStatus("error")
       setMessage(error instanceof Error ? error.message : "Clustering failed")
@@ -208,6 +190,7 @@ export function OptimizePanel() {
         description: "Failed to create panel",
         variant: "destructive",
       })
+      throw error
     }
   }
 
@@ -265,7 +248,6 @@ export function OptimizePanel() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            {/* Step 1 */}
             <div className="flex flex-1 items-center gap-3">
               <StatusIcon status={optimizeStatus} />
               <div className="flex-1">
@@ -280,7 +262,6 @@ export function OptimizePanel() {
 
             <ArrowRight className="hidden h-5 w-5 text-muted-foreground md:block" />
 
-            {/* Step 2 */}
             <div className="flex flex-1 items-center gap-3">
               <StatusIcon status={filterStatus} />
               <div className="flex-1">
@@ -295,7 +276,6 @@ export function OptimizePanel() {
 
             <ArrowRight className="hidden h-5 w-5 text-muted-foreground md:block" />
 
-            {/* Step 3 */}
             <div className="flex flex-1 items-center gap-3">
               <StatusIcon status={clusterStatus} />
               <div className="flex-1">
@@ -312,7 +292,6 @@ export function OptimizePanel() {
       </Card>
 
       <div className="grid gap-4 md:gap-6">
-        {/* Individual Steps */}
         <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
           <Card>
             <CardHeader>
@@ -361,7 +340,7 @@ export function OptimizePanel() {
             </CardHeader>
             <CardContent className="space-y-4">
               <Button
-                onClick={runFilter}
+                onClick={() => runFilter()}
                 disabled={filterStatus === "running"}
                 className="w-full h-12"
                 size="lg"
@@ -404,7 +383,7 @@ export function OptimizePanel() {
             </CardHeader>
             <CardContent className="space-y-4">
               <Button
-                onClick={runCluster}
+                onClick={() => runCluster()}
                 disabled={clusterStatus === "running"}
                 className="w-full h-12"
                 size="lg"
@@ -438,7 +417,6 @@ export function OptimizePanel() {
           </Card>
         </div>
 
-        {/* Quick Pipeline */}
         <Card className="border-border bg-background">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg md:text-xl">

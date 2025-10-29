@@ -1,11 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import type React from "react"
+
+import { useState, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Play, Database, Cpu, BarChart3, CheckCircle2, FileText } from "lucide-react"
+import { Loader2, Play, Database, Cpu, BarChart3, CheckCircle2, FileText, Upload, X } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 
@@ -16,6 +18,27 @@ export function TrainPanel() {
   const [stage, setStage] = useState("")
   const [logs, setLogs] = useState<string[]>([])
   const [metrics, setMetrics] = useState<{ auc?: number; accuracy?: number } | null>(null)
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (!file.name.endsWith(".csv")) {
+        toast({
+          title: "Invalid file",
+          description: "Please upload a CSV file",
+          variant: "destructive",
+        })
+        return
+      }
+      setUploadedFile(file)
+      toast({
+        title: "File uploaded",
+        description: `${file.name} ready for training`,
+      })
+    }
+  }
 
   const runTraining = async () => {
     setTraining(true)
@@ -28,7 +51,16 @@ export function TrainPanel() {
       setProgress(10)
       setLogs((prev) => [...prev, "Starting embedding process..."])
 
-      const res = await fetch("/api/train", { method: "POST" })
+      const formData = new FormData()
+      if (uploadedFile) {
+        formData.append("file", uploadedFile)
+        setLogs((prev) => [...prev, `Using uploaded file: ${uploadedFile.name}`])
+      }
+
+      const res = await fetch("/api/train", {
+        method: "POST",
+        body: uploadedFile ? formData : undefined,
+      })
       const data = await res.json()
 
       if (!res.ok) throw new Error(data.error || "Training failed")
@@ -104,25 +136,64 @@ export function TrainPanel() {
       <Card className="border-border bg-background">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5 text-blue-500" />
+            Upload Training Data
+          </CardTitle>
+          <CardDescription>Upload a CSV file with antigen-CDR3 pairs for training</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div
+            className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
+            {uploadedFile ? (
+              <div className="flex items-center justify-center gap-3">
+                <FileText className="h-8 w-8 text-blue-500" />
+                <div className="text-left">
+                  <p className="font-medium">{uploadedFile.name}</p>
+                  <p className="text-sm text-muted-foreground">{(uploadedFile.size / 1024).toFixed(2)} KB</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setUploadedFile(null)
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div>
+                <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-sm font-medium mb-1">Click to upload or drag and drop</p>
+                <p className="text-xs text-muted-foreground">CSV file with columns: antigen, cdr3, label</p>
+              </div>
+            )}
+          </div>
+
+          <Alert>
+            <Database className="h-4 w-4" />
+            <AlertDescription>
+              CSV format: <code className="rounded bg-muted px-1 py-0.5">antigen,cdr3,label</code>
+              <br />
+              Example: <code className="rounded bg-muted px-1 py-0.5 text-xs">SPIKE_PROTEIN,CARDGTYF,1</code>
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-background">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <Play className="h-5 w-5 text-blue-500" />
             Train Scoring Model
           </CardTitle>
           <CardDescription>Embed antigen-CDR3 pairs and train the scoring model</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Alert>
-            <Database className="h-4 w-4" />
-            <AlertDescription>
-              Training requires <code className="rounded bg-muted px-1 py-0.5">antigen_cdr3_pairs.csv</code> in the data
-              folder. The process includes:
-              <ul className="mt-2 list-inside list-disc space-y-1">
-                <li>Embedding pairs with ESM backbone</li>
-                <li>Applying data augmentation (hard negatives, oversampling)</li>
-                <li>Training the scoring model</li>
-              </ul>
-            </AlertDescription>
-          </Alert>
-
           <Button onClick={runTraining} disabled={training} className="w-full h-12" size="lg">
             {training ? (
               <>
