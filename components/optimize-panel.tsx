@@ -76,7 +76,16 @@ export function OptimizePanel() {
     setMessage("Filtering candidates...")
 
     try {
-      const dataToFilter = inputData || pipelineData
+      let dataToFilter = inputData || pipelineData
+
+      if (!dataToFilter && typeof sessionStorage !== "undefined") {
+        const stored = sessionStorage.getItem("abyss_optimize_data")
+        if (stored) {
+          dataToFilter = JSON.parse(stored)
+          setPipelineData(dataToFilter)
+        }
+      }
+
       if (!dataToFilter) {
         throw new Error("No data to filter. Run optimization first.")
       }
@@ -99,6 +108,10 @@ export function OptimizePanel() {
       setMessage(`Filtered to ${data.count || 0} top candidates`)
 
       setPipelineData(data.data)
+
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("abyss_filter_data", JSON.stringify(data.data))
+      }
 
       toast({
         title: "Success",
@@ -124,7 +137,16 @@ export function OptimizePanel() {
     setMessage("Clustering into panel...")
 
     try {
-      const dataToCluster = inputData || pipelineData
+      let dataToCluster = inputData || pipelineData
+
+      if (!dataToCluster && typeof sessionStorage !== "undefined") {
+        const stored = sessionStorage.getItem("abyss_filter_data")
+        if (stored) {
+          dataToCluster = JSON.parse(stored)
+          setPipelineData(dataToCluster)
+        }
+      }
+
       if (!dataToCluster) {
         throw new Error("No data to cluster. Run filtering first.")
       }
@@ -176,6 +198,10 @@ export function OptimizePanel() {
       setMessage("Step 1/3: Generating candidates...")
       setProgress(10)
       const optimizeData = await runOptimize()
+
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("abyss_optimize_data", JSON.stringify(optimizeData))
+      }
 
       setMessage("Step 2/3: Filtering candidates...")
       setProgress(40)

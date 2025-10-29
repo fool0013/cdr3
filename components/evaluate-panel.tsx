@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
@@ -32,6 +32,10 @@ export function EvaluatePanel() {
 
       setResults(data)
 
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("abyss_eval_results", JSON.stringify(data))
+      }
+
       toast({
         title: "Success",
         description: "Evaluation completed successfully",
@@ -46,6 +50,15 @@ export function EvaluatePanel() {
       setEvaluating(false)
     }
   }
+
+  useEffect(() => {
+    if (typeof sessionStorage !== "undefined") {
+      const stored = sessionStorage.getItem("abyss_eval_results")
+      if (stored) {
+        setResults(JSON.parse(stored))
+      }
+    }
+  }, [])
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
