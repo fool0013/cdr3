@@ -67,14 +67,14 @@ export function ConfigPanel() {
 
   const loadConfig = () => {
     try {
-      const stored = localStorage.getItem("abyss_config")
+      const stored = sessionStorage.getItem("abyss_config")
       if (stored) {
         setConfig(JSON.parse(stored))
       } else {
         setConfig(DEFAULTS)
       }
     } catch (error) {
-      console.error("[v0] Failed to load config from localStorage:", error)
+      console.error("[v0] Failed to load config from sessionStorage:", error)
       setConfig(DEFAULTS)
       toast({
         title: "Error",
@@ -91,13 +91,13 @@ export function ConfigPanel() {
 
     setSaving(true)
     try {
-      localStorage.setItem("abyss_config", JSON.stringify(config))
+      sessionStorage.setItem("abyss_config", JSON.stringify(config))
       toast({
         title: "Success",
         description: "Configuration saved successfully",
       })
     } catch (error) {
-      console.error("[v0] Failed to save config to localStorage:", error)
+      console.error("[v0] Failed to save config to sessionStorage:", error)
       toast({
         title: "Error",
         description: "Failed to save configuration",

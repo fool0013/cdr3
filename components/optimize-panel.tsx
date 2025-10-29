@@ -33,7 +33,7 @@ export function OptimizePanel() {
     setMessage("Generating CDR3 candidates...")
 
     try {
-      const configStr = localStorage.getItem("abyss_config")
+      const configStr = sessionStorage.getItem("abyss_config")
       const config = configStr ? JSON.parse(configStr) : {}
 
       const res = await fetch("/api/optimize", {
@@ -81,7 +81,7 @@ export function OptimizePanel() {
         throw new Error("No data to filter. Run optimization first.")
       }
 
-      const configStr = localStorage.getItem("abyss_config")
+      const configStr = sessionStorage.getItem("abyss_config")
       const config = configStr ? JSON.parse(configStr) : {}
 
       const res = await fetch("/api/filter", {
@@ -129,7 +129,7 @@ export function OptimizePanel() {
         throw new Error("No data to cluster. Run filtering first.")
       }
 
-      const configStr = localStorage.getItem("abyss_config")
+      const configStr = sessionStorage.getItem("abyss_config")
       const config = configStr ? JSON.parse(configStr) : {}
 
       const res = await fetch("/api/cluster", {
