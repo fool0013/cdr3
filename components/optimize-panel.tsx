@@ -79,18 +79,27 @@ export function OptimizePanel() {
     try {
       let dataToFilter = inputData || candidates
 
-      if (!dataToFilter || dataToFilter.length === 0) {
+      // Try to load from sessionStorage if no data available
+      if (!dataToFilter || !Array.isArray(dataToFilter) || dataToFilter.length === 0) {
         if (typeof sessionStorage !== "undefined") {
           const stored = sessionStorage.getItem("abyss_optimize_data")
           if (stored) {
-            dataToFilter = JSON.parse(stored)
-            setCandidates(dataToFilter)
+            try {
+              const parsed = JSON.parse(stored)
+              dataToFilter = Array.isArray(parsed) ? parsed : []
+              if (dataToFilter.length > 0) {
+                setCandidates(dataToFilter)
+              }
+            } catch (e) {
+              console.error("[v0] Failed to parse stored data:", e)
+            }
           }
         }
       }
 
-      if (!dataToFilter || dataToFilter.length === 0) {
-        throw new Error("No data to filter. Run optimization first.")
+      // Validate we have data to filter
+      if (!Array.isArray(dataToFilter) || dataToFilter.length === 0) {
+        throw new Error("No candidates found. Run optimization first.")
       }
 
       const configStr = sessionStorage.getItem("abyss_config")
@@ -146,18 +155,27 @@ export function OptimizePanel() {
     try {
       let dataToCluster = inputData || candidates
 
-      if (!dataToCluster || dataToCluster.length === 0) {
+      // Try to load from sessionStorage if no data available
+      if (!dataToCluster || !Array.isArray(dataToCluster) || dataToCluster.length === 0) {
         if (typeof sessionStorage !== "undefined") {
           const stored = sessionStorage.getItem("abyss_filter_data")
           if (stored) {
-            dataToCluster = JSON.parse(stored)
-            setCandidates(dataToCluster)
+            try {
+              const parsed = JSON.parse(stored)
+              dataToCluster = Array.isArray(parsed) ? parsed : []
+              if (dataToCluster.length > 0) {
+                setCandidates(dataToCluster)
+              }
+            } catch (e) {
+              console.error("[v0] Failed to parse stored data:", e)
+            }
           }
         }
       }
 
-      if (!dataToCluster || dataToCluster.length === 0) {
-        throw new Error("No data to cluster. Run filtering first.")
+      // Validate we have data to cluster
+      if (!Array.isArray(dataToCluster) || dataToCluster.length === 0) {
+        throw new Error("No candidates found. Run filtering first.")
       }
 
       const configStr = sessionStorage.getItem("abyss_config")
