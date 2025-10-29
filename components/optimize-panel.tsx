@@ -25,13 +25,22 @@ export function OptimizePanel() {
     clustered: 0,
   })
 
+  const [pipelineData, setPipelineData] = useState<any>(null)
+
   const runOptimize = async () => {
     setOptimizeStatus("running")
     setProgress(0)
     setMessage("Generating CDR3 candidates...")
 
     try {
-      const res = await fetch("/api/optimize", { method: "POST" })
+      const configStr = localStorage.getItem("abyss_config")
+      const config = configStr ? JSON.parse(configStr) : {}
+
+      const res = await fetch("/api/optimize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config }),
+      })
       const data = await res.json()
 
       if (!res.ok) throw new Error(data.error || "Optimization failed")
@@ -41,10 +50,14 @@ export function OptimizePanel() {
       setStats((prev) => ({ ...prev, generated: data.count || 0 }))
       setMessage(`Generated ${data.count || 0} candidates`)
 
+      setPipelineData(data.data)
+
       toast({
         title: "Success",
         description: "CDR3 candidates generated successfully",
       })
+
+      return data.data
     } catch (error) {
       setOptimizeStatus("error")
       setMessage(error instanceof Error ? error.message : "Optimization failed")
@@ -53,16 +66,29 @@ export function OptimizePanel() {
         description: "Failed to generate candidates",
         variant: "destructive",
       })
+      throw error
     }
   }
 
-  const runFilter = async () => {
+  const runFilter = async (inputData?: any) => {
     setFilterStatus("running")
     setProgress(0)
     setMessage("Filtering candidates...")
 
     try {
-      const res = await fetch("/api/filter", { method: "POST" })
+      const dataToFilter = inputData || pipelineData
+      if (!dataToFilter) {
+        throw new Error("No data to filter. Run optimization first.")
+      }
+
+      const configStr = localStorage.getItem("abyss_config")
+      const config = configStr ? JSON.parse(configStr) : {}
+
+      const res = await fetch("/api/filter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: dataToFilter, config }),
+      })
       const data = await res.json()
 
       if (!res.ok) throw new Error(data.error || "Filtering failed")
@@ -72,10 +98,14 @@ export function OptimizePanel() {
       setStats((prev) => ({ ...prev, filtered: data.count || 0 }))
       setMessage(`Filtered to ${data.count || 0} top candidates`)
 
+      setPipelineData(data.data)
+
       toast({
         title: "Success",
         description: "Candidates filtered successfully",
       })
+
+      return data.data
     } catch (error) {
       setFilterStatus("error")
       setMessage(error instanceof Error ? error.message : "Filtering failed")
@@ -84,16 +114,29 @@ export function OptimizePanel() {
         description: "Failed to filter candidates",
         variant: "destructive",
       })
+      throw error
     }
   }
 
-  const runCluster = async () => {
+  const runCluster = async (inputData?: any) => {
     setClusterStatus("running")
     setProgress(0)
     setMessage("Clustering into panel...")
 
     try {
-      const res = await fetch("/api/cluster", { method: "POST" })
+      const dataToCluster = inputData || pipelineData
+      if (!dataToCluster) {
+        throw new Error("No data to cluster. Run filtering first.")
+      }
+
+      const configStr = localStorage.getItem("abyss_config")
+      const config = configStr ? JSON.parse(configStr) : {}
+
+      const res = await fetch("/api/cluster", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: dataToCluster, config }),
+      })
       const data = await res.json()
 
       if (!res.ok) throw new Error(data.error || "Clustering failed")
@@ -103,10 +146,16 @@ export function OptimizePanel() {
       setStats((prev) => ({ ...prev, clustered: data.count || 0 }))
       setMessage(`Created panel with ${data.count || 0} clusters`)
 
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("abyss_last_panel", JSON.stringify(data.data))
+      }
+
       toast({
         title: "Success",
         description: "Panel created successfully",
       })
+
+      return data.data
     } catch (error) {
       setClusterStatus("error")
       setMessage(error instanceof Error ? error.message : "Clustering failed")
@@ -115,6 +164,7 @@ export function OptimizePanel() {
         description: "Failed to create panel",
         variant: "destructive",
       })
+      throw error
     }
   }
 
@@ -123,20 +173,17 @@ export function OptimizePanel() {
     setProgress(0)
 
     try {
-      // Step 1: Optimize
       setMessage("Step 1/3: Generating candidates...")
       setProgress(10)
-      await runOptimize()
+      const optimizeData = await runOptimize()
 
-      // Step 2: Filter
       setMessage("Step 2/3: Filtering candidates...")
       setProgress(40)
-      await runFilter()
+      const filterData = await runFilter(optimizeData)
 
-      // Step 3: Cluster
       setMessage("Step 3/3: Clustering into panel...")
       setProgress(70)
-      await runCluster()
+      await runCluster(filterData)
 
       setQuickStatus("success")
       setProgress(100)

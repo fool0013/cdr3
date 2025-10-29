@@ -16,11 +16,13 @@ function clusterCandidates(candidates: any[], k: number) {
   return clustered
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    const filteredDataStr = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("abyss_last_filtered") : null
+    const body = await request.json()
+    const filteredData = body.data
+    const config = body.config || { clusters: 10 }
 
-    if (!filteredDataStr) {
+    if (!filteredData || !filteredData.candidates) {
       return NextResponse.json(
         {
           error: "No filtered candidates found. Run filtering first.",
@@ -28,10 +30,6 @@ export async function POST() {
         { status: 400 },
       )
     }
-
-    const filteredData = JSON.parse(filteredDataStr)
-    const configStr = typeof localStorage !== "undefined" ? localStorage.getItem("abyss_config") : null
-    const config = configStr ? JSON.parse(configStr) : { clusters: 10 }
 
     const clustered = clusterCandidates(filteredData.candidates, config.clusters || 10)
 
@@ -42,16 +40,12 @@ export async function POST() {
       count: clustered.length,
     }
 
-    // Store final results
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.setItem("abyss_last_panel", JSON.stringify(resultData))
-    }
-
     return NextResponse.json({
       success: true,
       output: `opt_${filteredData.timestamp}_panel.csv`,
       count: clustered.length,
       demo: true,
+      data: resultData,
     })
   } catch (error) {
     console.error("[v0] Cluster error:", error)

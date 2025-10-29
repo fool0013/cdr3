@@ -20,18 +20,16 @@ function generateMockCandidates(antigen: string, beam: number) {
   return candidates
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    const configStr = typeof window !== "undefined" ? localStorage.getItem("abyss_config") : null
-    const config = configStr
-      ? JSON.parse(configStr)
-      : {
-          antigen: "EXAMPLE",
-          seed_cdr3: "CARDGYW",
-          beam: 100,
-          steps: 50,
-          k_mut: 3,
-        }
+    const body = await request.json()
+    const config = body.config || {
+      antigen: "EXAMPLE",
+      seed_cdr3: "CARDGYW",
+      beam: 100,
+      steps: 50,
+      k_mut: 3,
+    }
 
     if (!config.antigen) {
       return NextResponse.json({ error: "No antigen sequence configured" }, { status: 400 })
@@ -40,23 +38,18 @@ export async function POST() {
     const candidates = generateMockCandidates(config.antigen, config.beam || 100)
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5)
-    const resultData = {
-      timestamp,
-      antigen: config.antigen,
-      candidates,
-      count: candidates.length,
-    }
-
-    // Store for next steps
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.setItem("abyss_last_raw", JSON.stringify(resultData))
-    }
 
     return NextResponse.json({
       success: true,
       output: `opt_${timestamp}.csv`,
       count: candidates.length,
-      demo: true, // Indicate this is demo mode
+      demo: true,
+      data: {
+        timestamp,
+        antigen: config.antigen,
+        candidates,
+        count: candidates.length,
+      },
     })
   } catch (error) {
     console.error("[v0] Optimize error:", error)

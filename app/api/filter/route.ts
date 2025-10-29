@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server"
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    const rawDataStr = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("abyss_last_raw") : null
+    const body = await request.json()
+    const rawData = body.data
+    const config = body.config || { keep_top: 50 }
 
-    if (!rawDataStr) {
+    if (!rawData || !rawData.candidates) {
       return NextResponse.json(
         {
           error: "No raw candidates found. Run optimization first.",
@@ -13,11 +15,7 @@ export async function POST() {
       )
     }
 
-    const rawData = JSON.parse(rawDataStr)
-    const configStr = typeof localStorage !== "undefined" ? localStorage.getItem("abyss_config") : null
-    const config = configStr ? JSON.parse(configStr) : { keep_top: 50 }
-
-    const sorted = [...rawData.candidates].sort((a, b) => b.score - a.score)
+    const sorted = [...rawData.candidates].sort((a: any, b: any) => b.score - a.score)
     const filtered = sorted.slice(0, config.keep_top || 50)
 
     const resultData = {
@@ -27,16 +25,12 @@ export async function POST() {
       count: filtered.length,
     }
 
-    // Store for next step
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.setItem("abyss_last_filtered", JSON.stringify(resultData))
-    }
-
     return NextResponse.json({
       success: true,
       output: `opt_${rawData.timestamp}_filtered.csv`,
       count: filtered.length,
       demo: true,
+      data: resultData,
     })
   } catch (error) {
     console.error("[v0] Filter error:", error)
