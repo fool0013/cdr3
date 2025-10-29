@@ -25,7 +25,7 @@ export function OptimizePanel() {
     clustered: 0,
   })
 
-  const [pipelineData, setPipelineData] = useState<any>(null)
+  const [candidates, setCandidates] = useState<any[]>([])
 
   const runOptimize = async () => {
     setOptimizeStatus("running")
@@ -50,14 +50,15 @@ export function OptimizePanel() {
       setStats((prev) => ({ ...prev, generated: data.count || 0 }))
       setMessage(`Generated ${data.count || 0} candidates`)
 
-      setPipelineData(data.data)
+      const candidatesArray = Array.isArray(data.data) ? data.data : data.data?.candidates || []
+      setCandidates(candidatesArray)
 
       toast({
         title: "Success",
         description: "CDR3 candidates generated successfully",
       })
 
-      return data.data
+      return candidatesArray
     } catch (error) {
       setOptimizeStatus("error")
       setMessage(error instanceof Error ? error.message : "Optimization failed")
@@ -70,23 +71,25 @@ export function OptimizePanel() {
     }
   }
 
-  const runFilter = async (inputData?: any) => {
+  const runFilter = async (inputData?: any[]) => {
     setFilterStatus("running")
     setProgress(0)
     setMessage("Filtering candidates...")
 
     try {
-      let dataToFilter = inputData || pipelineData
+      let dataToFilter = inputData || candidates
 
-      if (!dataToFilter && typeof sessionStorage !== "undefined") {
-        const stored = sessionStorage.getItem("abyss_optimize_data")
-        if (stored) {
-          dataToFilter = JSON.parse(stored)
-          setPipelineData(dataToFilter)
+      if (!dataToFilter || dataToFilter.length === 0) {
+        if (typeof sessionStorage !== "undefined") {
+          const stored = sessionStorage.getItem("abyss_optimize_data")
+          if (stored) {
+            dataToFilter = JSON.parse(stored)
+            setCandidates(dataToFilter)
+          }
         }
       }
 
-      if (!dataToFilter) {
+      if (!dataToFilter || dataToFilter.length === 0) {
         throw new Error("No data to filter. Run optimization first.")
       }
 
@@ -96,7 +99,10 @@ export function OptimizePanel() {
       const res = await fetch("/api/filter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: dataToFilter, config }),
+        body: JSON.stringify({
+          data: Array.isArray(dataToFilter) ? dataToFilter : [],
+          config,
+        }),
       })
       const data = await res.json()
 
@@ -107,10 +113,11 @@ export function OptimizePanel() {
       setStats((prev) => ({ ...prev, filtered: data.count || 0 }))
       setMessage(`Filtered to ${data.count || 0} top candidates`)
 
-      setPipelineData(data.data)
+      const filteredCandidates = Array.isArray(data.data) ? data.data : data.data?.candidates || []
+      setCandidates(filteredCandidates)
 
       if (typeof sessionStorage !== "undefined") {
-        sessionStorage.setItem("abyss_filter_data", JSON.stringify(data.data))
+        sessionStorage.setItem("abyss_filter_data", JSON.stringify(filteredCandidates))
       }
 
       toast({
@@ -118,7 +125,7 @@ export function OptimizePanel() {
         description: "Candidates filtered successfully",
       })
 
-      return data.data
+      return filteredCandidates
     } catch (error) {
       setFilterStatus("error")
       setMessage(error instanceof Error ? error.message : "Filtering failed")
@@ -131,23 +138,25 @@ export function OptimizePanel() {
     }
   }
 
-  const runCluster = async (inputData?: any) => {
+  const runCluster = async (inputData?: any[]) => {
     setClusterStatus("running")
     setProgress(0)
     setMessage("Clustering into panel...")
 
     try {
-      let dataToCluster = inputData || pipelineData
+      let dataToCluster = inputData || candidates
 
-      if (!dataToCluster && typeof sessionStorage !== "undefined") {
-        const stored = sessionStorage.getItem("abyss_filter_data")
-        if (stored) {
-          dataToCluster = JSON.parse(stored)
-          setPipelineData(dataToCluster)
+      if (!dataToCluster || dataToCluster.length === 0) {
+        if (typeof sessionStorage !== "undefined") {
+          const stored = sessionStorage.getItem("abyss_filter_data")
+          if (stored) {
+            dataToCluster = JSON.parse(stored)
+            setCandidates(dataToCluster)
+          }
         }
       }
 
-      if (!dataToCluster) {
+      if (!dataToCluster || dataToCluster.length === 0) {
         throw new Error("No data to cluster. Run filtering first.")
       }
 
@@ -157,7 +166,10 @@ export function OptimizePanel() {
       const res = await fetch("/api/cluster", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: dataToCluster, config }),
+        body: JSON.stringify({
+          data: Array.isArray(dataToCluster) ? dataToCluster : [],
+          config,
+        }),
       })
       const data = await res.json()
 
@@ -168,8 +180,10 @@ export function OptimizePanel() {
       setStats((prev) => ({ ...prev, clustered: data.count || 0 }))
       setMessage(`Created panel with ${data.count || 0} clusters`)
 
+      const clusteredData = Array.isArray(data.data) ? data.data : data.data?.clusters || []
+
       if (typeof sessionStorage !== "undefined") {
-        sessionStorage.setItem("abyss_last_panel", JSON.stringify(data.data))
+        sessionStorage.setItem("abyss_last_panel", JSON.stringify(clusteredData))
       }
 
       toast({
@@ -177,7 +191,7 @@ export function OptimizePanel() {
         description: "Panel created successfully",
       })
 
-      return data.data
+      return clusteredData
     } catch (error) {
       setClusterStatus("error")
       setMessage(error instanceof Error ? error.message : "Clustering failed")
@@ -186,7 +200,6 @@ export function OptimizePanel() {
         description: "Failed to create panel",
         variant: "destructive",
       })
-      throw error
     }
   }
 
