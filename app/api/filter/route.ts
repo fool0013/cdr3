@@ -3,34 +3,34 @@ import { NextResponse } from "next/server"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const rawData = body.data
+    let candidates = body.data
     const config = body.config || { keep_top: 50 }
 
-    if (!rawData || !rawData.candidates) {
+    // If data is an object with candidates property, extract it
+    if (candidates && typeof candidates === "object" && !Array.isArray(candidates) && candidates.candidates) {
+      candidates = candidates.candidates
+    }
+
+    // Validate we have an array of candidates
+    if (!candidates || !Array.isArray(candidates) || candidates.length === 0) {
       return NextResponse.json(
         {
-          error: "No raw candidates found. Run optimization first.",
+          error: "No candidates found. Run optimization first.",
         },
         { status: 400 },
       )
     }
 
-    const sorted = [...rawData.candidates].sort((a: any, b: any) => b.score - a.score)
+    // Sort by score and keep top N
+    const sorted = [...candidates].sort((a: any, b: any) => (b.score || 0) - (a.score || 0))
     const filtered = sorted.slice(0, config.keep_top || 50)
-
-    const resultData = {
-      timestamp: rawData.timestamp,
-      antigen: rawData.antigen,
-      candidates: filtered,
-      count: filtered.length,
-    }
 
     return NextResponse.json({
       success: true,
-      output: `opt_${rawData.timestamp}_filtered.csv`,
+      output: `filtered_${Date.now()}.csv`,
       count: filtered.length,
       demo: true,
-      data: resultData,
+      data: filtered,
     })
   } catch (error) {
     console.error("[v0] Filter error:", error)
