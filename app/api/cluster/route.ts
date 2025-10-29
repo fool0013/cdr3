@@ -1,43 +1,65 @@
 import { NextResponse } from "next/server"
-import { exec } from "child_process"
-import { promisify } from "util"
-import { promises as fs } from "fs"
-import path from "path"
 
-const execAsync = promisify(exec)
+function clusterCandidates(candidates: any[], k: number) {
+  // Sort by score and take top from each score range
+  const sorted = [...candidates].sort((a, b) => b.score - a.score)
+  const clustered = []
+  const step = Math.floor(sorted.length / k)
+
+  for (let i = 0; i < k && i * step < sorted.length; i++) {
+    clustered.push({
+      ...sorted[i * step],
+      cluster: i,
+    })
+  }
+
+  return clustered
+}
 
 export async function POST() {
   try {
-    const configData = await fs.readFile(path.join(process.cwd(), "ui_state.json"), "utf-8")
-    const config = JSON.parse(configData)
+    const filteredDataStr = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("abyss_last_filtered") : null
 
-    if (!config.last_filtered) {
-      return NextResponse.json({ error: "No filtered candidates found. Run filtering first." }, { status: 400 })
+    if (!filteredDataStr) {
+      return NextResponse.json(
+        {
+          error: "No filtered candidates found. Run filtering first.",
+        },
+        { status: 400 },
+      )
     }
 
-    const inp = config.last_filtered
-    const outCsv = inp.replace("_filtered.csv", "_panel.csv")
-    const outFasta = inp.replace("_filtered.csv", "_panel.fasta")
+    const filteredData = JSON.parse(filteredDataStr)
+    const configStr = typeof localStorage !== "undefined" ? localStorage.getItem("abyss_config") : null
+    const config = configStr ? JSON.parse(configStr) : { clusters: 10 }
 
-    const cmd = `python cluster_candidates.py --inp "${inp}" --out "${outCsv}" --k ${config.clusters} --esm "${config.esm}"`
+    const clustered = clusterCandidates(filteredData.candidates, config.clusters || 10)
 
-    await execAsync(cmd)
-
-    // Try to export FASTA
-    try {
-      await execAsync(`python export_fasta.py --inp "${outCsv}" --out "${outFasta}"`)
-    } catch {
-      // Fallback: create simple FASTA
-      console.log("[v0] Using fallback FASTA export")
+    const resultData = {
+      timestamp: filteredData.timestamp,
+      antigen: filteredData.antigen,
+      candidates: clustered,
+      count: clustered.length,
     }
 
-    // Update state
-    config.last_panel = outCsv
-    await fs.writeFile(path.join(process.cwd(), "ui_state.json"), JSON.stringify(config, null, 2))
+    // Store final results
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem("abyss_last_panel", JSON.stringify(resultData))
+    }
 
-    return NextResponse.json({ success: true, output: outCsv, count: config.clusters })
+    return NextResponse.json({
+      success: true,
+      output: `opt_${filteredData.timestamp}_panel.csv`,
+      count: clustered.length,
+      demo: true,
+    })
   } catch (error) {
     console.error("[v0] Cluster error:", error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Clustering failed" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Clustering failed",
+      },
+      { status: 500 },
+    )
   }
 }

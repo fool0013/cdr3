@@ -1,37 +1,70 @@
 import { NextResponse } from "next/server"
-import { exec } from "child_process"
-import { promisify } from "util"
-import { promises as fs } from "fs"
-import path from "path"
 
-const execAsync = promisify(exec)
+function generateMockCandidates(antigen: string, beam: number) {
+  const aminoAcids = "ACDEFGHIKLMNPQRSTVWY"
+  const candidates = []
+
+  for (let i = 0; i < beam; i++) {
+    let cdr3 = ""
+    const length = 12 + Math.floor(Math.random() * 6) // 12-17 AA
+    for (let j = 0; j < length; j++) {
+      cdr3 += aminoAcids[Math.floor(Math.random() * aminoAcids.length)]
+    }
+    candidates.push({
+      cdr3,
+      score: 0.5 + Math.random() * 0.5, // 0.5-1.0
+      step: Math.floor(Math.random() * 100),
+    })
+  }
+
+  return candidates
+}
 
 export async function POST() {
   try {
-    const configData = await fs.readFile(path.join(process.cwd(), "ui_state.json"), "utf-8")
-    const config = JSON.parse(configData)
+    const configStr = typeof window !== "undefined" ? localStorage.getItem("abyss_config") : null
+    const config = configStr
+      ? JSON.parse(configStr)
+      : {
+          antigen: "EXAMPLE",
+          seed_cdr3: "CARDGYW",
+          beam: 100,
+          steps: 50,
+          k_mut: 3,
+        }
 
     if (!config.antigen) {
       return NextResponse.json({ error: "No antigen sequence configured" }, { status: 400 })
     }
 
-    const outDir = config.out_folder || "runs"
-    await fs.mkdir(outDir, { recursive: true })
+    const candidates = generateMockCandidates(config.antigen, config.beam || 100)
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5)
-    const outCsv = path.join(outDir, `opt_${timestamp}.csv`)
+    const resultData = {
+      timestamp,
+      antigen: config.antigen,
+      candidates,
+      count: candidates.length,
+    }
 
-    const cmd = `python optimize_cdr3.py --antigen "${config.antigen}" --start_cdr3 "${config.seed_cdr3}" --steps ${config.steps} --beam ${config.beam} --topk 20 --k_mut ${config.k_mut} --ckpt "${config.checkpoint}" --out_csv "${outCsv}"`
+    // Store for next steps
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem("abyss_last_raw", JSON.stringify(resultData))
+    }
 
-    await execAsync(cmd)
-
-    // Update state with last output
-    config.last_raw = outCsv
-    await fs.writeFile(path.join(process.cwd(), "ui_state.json"), JSON.stringify(config, null, 2))
-
-    return NextResponse.json({ success: true, output: outCsv, count: config.beam })
+    return NextResponse.json({
+      success: true,
+      output: `opt_${timestamp}.csv`,
+      count: candidates.length,
+      demo: true, // Indicate this is demo mode
+    })
   } catch (error) {
     console.error("[v0] Optimize error:", error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Optimization failed" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Optimization failed",
+      },
+      { status: 500 },
+    )
   }
 }

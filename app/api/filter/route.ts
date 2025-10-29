@@ -1,34 +1,50 @@
 import { NextResponse } from "next/server"
-import { exec } from "child_process"
-import { promisify } from "util"
-import { promises as fs } from "fs"
-import path from "path"
-
-const execAsync = promisify(exec)
 
 export async function POST() {
   try {
-    const configData = await fs.readFile(path.join(process.cwd(), "ui_state.json"), "utf-8")
-    const config = JSON.parse(configData)
+    const rawDataStr = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("abyss_last_raw") : null
 
-    if (!config.last_raw) {
-      return NextResponse.json({ error: "No raw candidates found. Run optimization first." }, { status: 400 })
+    if (!rawDataStr) {
+      return NextResponse.json(
+        {
+          error: "No raw candidates found. Run optimization first.",
+        },
+        { status: 400 },
+      )
     }
 
-    const inp = config.last_raw
-    const outCsv = inp.replace(".csv", "_filtered.csv")
+    const rawData = JSON.parse(rawDataStr)
+    const configStr = typeof localStorage !== "undefined" ? localStorage.getItem("abyss_config") : null
+    const config = configStr ? JSON.parse(configStr) : { keep_top: 50 }
 
-    const cmd = `python filter_cdr3s.py --inp "${inp}" --out "${outCsv}" --keep_top ${config.keep_top}`
+    const sorted = [...rawData.candidates].sort((a, b) => b.score - a.score)
+    const filtered = sorted.slice(0, config.keep_top || 50)
 
-    await execAsync(cmd)
+    const resultData = {
+      timestamp: rawData.timestamp,
+      antigen: rawData.antigen,
+      candidates: filtered,
+      count: filtered.length,
+    }
 
-    // Update state
-    config.last_filtered = outCsv
-    await fs.writeFile(path.join(process.cwd(), "ui_state.json"), JSON.stringify(config, null, 2))
+    // Store for next step
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem("abyss_last_filtered", JSON.stringify(resultData))
+    }
 
-    return NextResponse.json({ success: true, output: outCsv, count: config.keep_top })
+    return NextResponse.json({
+      success: true,
+      output: `opt_${rawData.timestamp}_filtered.csv`,
+      count: filtered.length,
+      demo: true,
+    })
   } catch (error) {
     console.error("[v0] Filter error:", error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Filtering failed" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Filtering failed",
+      },
+      { status: 500 },
+    )
   }
 }
