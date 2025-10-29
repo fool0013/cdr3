@@ -1,5 +1,5 @@
 ## Quickstart
-```bash
+\`\`\`bash
 python -m venv venv
 # Windows
 venv\Scripts\activate
