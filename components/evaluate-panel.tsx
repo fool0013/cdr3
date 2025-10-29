@@ -22,6 +22,7 @@ export function EvaluatePanel() {
   const [results, setResults] = useState<EvalResults | null>(null)
 
   const runEvaluation = async () => {
+    console.log("[v0] Starting evaluation...")
     setEvaluating(true)
     setResults(null)
 
@@ -29,12 +30,17 @@ export function EvaluatePanel() {
       const res = await fetch("/api/evaluate", { method: "POST" })
       const data = await res.json()
 
+      console.log("[v0] Evaluation API response:", data)
+      console.log("[v0] Response status:", res.ok)
+
       if (!res.ok) throw new Error(data.error || "Evaluation failed")
 
+      console.log("[v0] Setting results:", data)
       setResults(data)
 
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.setItem("abyss_eval_results", JSON.stringify(data))
+        console.log("[v0] Saved results to sessionStorage")
       }
 
       toast({
@@ -42,9 +48,10 @@ export function EvaluatePanel() {
         description: "Evaluation completed successfully",
       })
     } catch (error) {
+      console.error("[v0] Evaluation error:", error)
       toast({
         title: "Error",
-        description: "Failed to run evaluation",
+        description: error instanceof Error ? error.message : "Failed to run evaluation",
         variant: "destructive",
       })
     } finally {
@@ -56,10 +63,14 @@ export function EvaluatePanel() {
     if (typeof sessionStorage !== "undefined") {
       const stored = sessionStorage.getItem("abyss_eval_results")
       if (stored) {
-        setResults(JSON.parse(stored))
+        const parsedResults = JSON.parse(stored)
+        console.log("[v0] Loaded results from sessionStorage:", parsedResults)
+        setResults(parsedResults)
       }
     }
   }, [])
+
+  console.log("[v0] Current results state:", results)
 
   return (
     <div className="space-y-6">

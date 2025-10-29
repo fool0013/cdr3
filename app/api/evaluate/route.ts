@@ -1,17 +1,8 @@
 import { NextResponse } from "next/server"
-import { exec } from "child_process"
-import { promisify } from "util"
-import { promises as fs } from "fs"
-import path from "path"
-
-const execAsync = promisify(exec)
 
 export async function POST() {
   try {
-    const configData = await fs.readFile(path.join(process.cwd(), "ui_state.json"), "utf-8")
-    const config = JSON.parse(configData)
-
-    const results: any = {}
+    console.log("[v0] Starting evaluation...")
 
     // Simulate realistic evaluation metrics
     const auc = 0.85 + Math.random() * 0.1 // AUC between 0.85-0.95
@@ -20,11 +11,13 @@ export async function POST() {
     const panel_max = panel_mean + 0.05 + Math.random() * 0.1 // Panel max higher than mean
     const improvement = (panel_max - seed_score) / seed_score
 
-    results.auc = Number(auc.toFixed(4))
-    results.seed_score = Number(seed_score.toFixed(4))
-    results.panel_mean = Number(panel_mean.toFixed(4))
-    results.panel_max = Number(panel_max.toFixed(4))
-    results.improvement = Number(improvement.toFixed(4))
+    const results = {
+      auc: Number(auc.toFixed(4)),
+      seed_score: Number(seed_score.toFixed(4)),
+      panel_mean: Number(panel_mean.toFixed(4)),
+      panel_max: Number(panel_max.toFixed(4)),
+      improvement: Number(improvement.toFixed(4)),
+    }
 
     console.log("[v0] Evaluation results generated:", results)
 
