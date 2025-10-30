@@ -108,7 +108,7 @@ export function ConfigPanel() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6">
         <Card className="border-border/50">
           <CardHeader>
             <CardTitle>Target Antigen</CardTitle>
@@ -216,7 +216,7 @@ export function ConfigPanel() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 lg:col-span-2">
+        <Card className="border-border/50">
           <CardHeader>
             <CardTitle>Training Settings</CardTitle>
             <CardDescription>Configure model training parameters</CardDescription>
