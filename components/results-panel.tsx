@@ -73,14 +73,65 @@ export function ResultsPanel() {
 
   const downloadFile = async (type: "raw" | "filtered" | "panel" | "fasta") => {
     try {
-      const res = await fetch(`/api/download/${type}`)
-      if (!res.ok) throw new Error("File not found")
+      let dataStr: string | null = null
+      let filename = ""
+      let mimeType = "text/csv"
 
-      const blob = await res.blob()
+      if (type === "raw") {
+        dataStr = sessionStorage.getItem("abyss_last_raw")
+        filename = "raw_candidates.csv"
+      } else if (type === "filtered") {
+        dataStr = sessionStorage.getItem("abyss_last_filtered")
+        filename = "filtered_candidates.csv"
+      } else if (type === "panel") {
+        dataStr = sessionStorage.getItem("abyss_last_panel")
+        filename = "final_panel.csv"
+      } else if (type === "fasta") {
+        dataStr = sessionStorage.getItem("abyss_last_panel")
+        filename = "final_panel.fasta"
+        mimeType = "text/plain"
+      }
+
+      if (!dataStr) {
+        throw new Error("No data available")
+      }
+
+      const data = JSON.parse(dataStr)
+      let content = ""
+
+      if (type === "fasta") {
+        // Convert to FASTA format
+        if (data.candidates && Array.isArray(data.candidates)) {
+          content = data.candidates
+            .map((c: any, idx: number) => `>candidate_${idx + 1} score=${c.score}\n${c.cdr3}`)
+            .join("\n")
+        }
+      } else {
+        // Convert to CSV format
+        if (data.candidates && Array.isArray(data.candidates)) {
+          const headers = ["cdr3", "score"]
+          if (data.candidates.some((c: any) => c.cluster !== undefined)) {
+            headers.push("cluster")
+          }
+          content = headers.join(",") + "\n"
+          content += data.candidates
+            .map((c: any) => {
+              const row = [c.cdr3, c.score]
+              if (c.cluster !== undefined) {
+                row.push(c.cluster)
+              }
+              return row.join(",")
+            })
+            .join("\n")
+        }
+      }
+
+      // Create and download blob
+      const blob = new Blob([content], { type: mimeType })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = `${type}.${type === "fasta" ? "fasta" : "csv"}`
+      a.download = filename
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -91,6 +142,7 @@ export function ResultsPanel() {
         description: "File downloaded successfully",
       })
     } catch (error) {
+      console.log("[v0] Download error:", error)
       toast({
         title: "Error",
         description: "Failed to download file",
