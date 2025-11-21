@@ -147,13 +147,11 @@ The repository supports both:
 - A **Python CLI / backend** for running the generation pipeline.
 - A **Next.js frontend** for the web UI.
 
-### 1. Clone the repository
-
-```bash
+### 1. Clone the repo
 git clone https://github.com/fool0013/cdr3.git
 cd cdr3
 
-create a virtual environment,
+### 2. create a virtual environment
 python -m venv venv
 
 # Windows
@@ -162,8 +160,9 @@ venv\Scripts\activate
 # macOS / Linux
 source venv/bin/activate
 
-install dependencies,
+### 3. install dependencies
 pip install -r requirements.txt
 
-finally, run the cli with
+### 4. finally, start the cli.
 python cdr3_cli.py
+
